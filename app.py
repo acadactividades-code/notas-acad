@@ -13,9 +13,6 @@ st.markdown("Sistema conectado con Google Sheets para la gestión de notas y gen
 st.sidebar.header("⚙️ Configuración de Datos")
 sheet_input_url = st.sidebar.text_input("Enlace de Google Sheets:", value="https://docs.google.com/spreadsheets/d/TU_ID_DE_LA_HOJA/edit?usp=sharing")
 
-# Opcional: Subir un logotipo institucional para el PDF
-logo_file = st.sidebar.file_uploader("Subir Logotipo de la Academia (Opcional, formato PNG/JPG)", type=["png", "jpg", "jpeg"])
-
 @st.cache_data(ttl=60)
 def cargar_datos_desde_drive(sheet_url):
     try:
@@ -71,32 +68,28 @@ if df_estudiantes is not None and df_notas is not None:
                 st.subheader("📄 Generar Informe de Notas en PDF")
                 periodo_pdf = st.selectbox("Seleccione el período para el Informe PDF:", [1, 2, 3, 4, "Todos los Períodos"])
                 
-                # Espacio para ingresar observaciones personalizadas
+                # Espacio para observaciones personalizadas
                 observaciones_txt = st.text_area("Observaciones o Comportamiento del Estudiante para el Informe:", 
                                                  value="El estudiante demuestra un buen desempeño académico y compromiso institucional durante este período.")
 
                 if st.button("Crear Informe de Notas en PDF"):
                     
-                    # Guardar temporalmente el logo si se subió
-                    logo_path = None
-                    if logo_file is not None:
-                        logo_path = "temp_logo.png"
-                        with open(logo_path, "wb") as f:
-                            f.write(logo_file.getbuffer())
+                    logo_path = "logos-acad-5.png"
 
                     class PDF(FPDF):
                         def header(self):
-                            if logo_path:
-                                try:
-                                    self.image(logo_path, 10, 8, 22)
-                                except:
-                                    pass
+                            try:
+                                # self.image(ruta, x, y, ancho) -> Ajustamos a un ancho de 30 para que se vea completo y nítido
+                                self.image(logo_path, 10, 8, 30)
+                            except Exception as e:
+                                pass
+                            
                             self.set_font('Arial', 'B', 15)
                             self.cell(0, 8, 'ACADEMIA ACAD - INFORME DE CALIFICACIONES', 0, 1, 'C')
                             self.set_font('Arial', 'I', 10)
                             titulo_per = f"Período: {periodo_pdf}" if periodo_pdf != "Todos los Períodos" else "Informe Consolidado (Todos los Períodos)"
                             self.cell(0, 5, titulo_per, 0, 1, 'C')
-                            self.ln(8)
+                            self.ln(10)
 
                         def footer(self):
                             self.set_y(-15)
