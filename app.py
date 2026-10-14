@@ -2,28 +2,48 @@ import streamlit as st
 import pandas as pd
 from fpdf import FPDF
 import base64
+from datetime import datetime
 
 # Configuración de la página
 st.set_page_config(page_title="Sistema de Notas ACAD", page_icon="🎓", layout="wide")
 
-st.title("🎓 Academia ACAD - Consulta de Informes Académicos")
-st.markdown("Sistema oficial de consulta de calificaciones y generación de informes institucionales.")
+# =========================================================================
+# BARRA LATERAL: LOGOTIPO Y ENLACES INSTITUCIONALES (WEB Y REDES)
+# =========================================================================
+st.sidebar.header("🏫 Academia ACAD")
+
+# Mostrar el logo en la barra lateral de la app web
+logo_path = "logos-acad-5.png"
+try:
+    st.sidebar.image(logo_path, width=120)
+except Exception:
+    pass
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🌐 Canales Oficiales")
+st.sidebar.markdown("[🌍 Visita nuestra Página Web](https://acadcol.com/)")
+st.sidebar.markdown("[📘 Facebook oficial](https://www.facebook.com/AcadaCol)")
+st.sidebar.markdown("[📸 Instagram oficial](https://www.instagram.com/acadcol/)")
+st.sidebar.markdown("[📸 TikTok oficial](https://www.tiktok.com/@acadcol)")
+st.sidebar.markdown("[💬 Canal de WhatsApp](https://api.whatsapp.com/send/?phone=573152402230)")
+st.sidebar.markdown("---")
 
 # =========================================================================
 # CONFIGURACIÓN DE LOS GRUPOS (Múltiples Libros de Google Sheets)
 # =========================================================================
-# Reemplaza los enlaces de abajo con los de tus 3 o 4 libros de Google Sheets reales:
 GRUPOS_SHEETS = {
-    "Grupo 1 (Ej. Grupo 01)": "https://docs.google.com/spreadsheets/d/1xB6F4__Zxr9lSDJBtIY8QolzlwSfMsZF/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
+    "Grupo 1 (Ej. Grupo 01)": "Phttps://docs.google.com/spreadsheets/d/1xB6F4__Zxr9lSDJBtIY8QolzlwSfMsZF/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
     "Grupo 2 (Ej. Grupo 02)": "https://docs.google.com/spreadsheets/d/1TrMi2yLmjGnEayaKdGwDqGjLl3wLbuMb/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
-    "Grupo 3 (Ej. Grupo 03)": "https://docs.google.com/spreadsheets/d/1uRZK8txP9TurJ3Z_0njPHdAYxtKqfcTm/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
+    "Grupo 3 (Ej. Grado 10C)": "https://docs.google.com/spreadsheets/d/1uRZK8txP9TurJ3Z_0njPHdAYxtKqfcTm/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
     "Grupo 4 (Ej. Grado 11D)": "PEGA_AQUI_EL_ENLACE_DEL_GRUPO_4"
 }
 
-# Selector de grupo en la barra lateral
-st.sidebar.header("📚 Selección de Grupo / Curso")
+st.sidebar.header("📚 Selección de Grupo")
 grupo_seleccionado = st.sidebar.selectbox("Seleccione el grupo a consultar:", list(GRUPOS_SHEETS.keys()))
 sheet_input_url = GRUPOS_SHEETS[grupo_seleccionado]
+
+st.title("🎓 Academia ACAD - Consulta de Informes Académicos")
+st.markdown("Sistema oficial de consulta de calificaciones y generación de informes institucionales.")
 
 @st.cache_data(ttl=30) 
 def cargar_datos_desde_drive(sheet_url):
@@ -90,11 +110,19 @@ if df_estudiantes is not None and df_notas is not None:
                     st.subheader("📄 Generar Informe de Notas en PDF")
                     periodo_pdf = st.selectbox("Seleccione el período para el Informe PDF:", [1, 2, 3, 4, "Todos los Períodos"], key="p_pdf")
                     
-                    observaciones_txt = st.text_area("Observaciones o Comportamiento del Estudiante:", 
-                                                     value="El estudiante demuestra un buen desempeño académico y compromiso institucional durante este período.")
+                    # Observaciones seguras (sin edición libre del usuario)
+                    observaciones_txt = "El estudiante demuestra un buen desempeño académico y compromiso institucional durante este período."
+                    if 'Observaciones' in est_info and pd.notna(est_info['Observaciones']):
+                        observaciones_txt = str(est_info['Observaciones'])
+                    elif not notas_est.empty and 'Observaciones' in notas_est.columns:
+                        obs_fila = notas_est[notas_est['Periodo'] == periodo_pdf]
+                        if not obs_fila.empty and pd.notna(obs_fila.iloc[0].get('Observaciones')):
+                            observaciones_txt = str(obs_fila.iloc[0]['Observaciones'])
+
+                    st.info(f"**Observaciones institucionales para el informe:**\n\n_{observaciones_txt}_")
 
                     if st.button("Crear Informe de Notas en PDF"):
-                        logo_path = "logos-acad-5.png"
+                        fecha_actual = datetime.now().strftime("%d/%m/%Y")
 
                         class PDF(FPDF):
                             def header(self):
@@ -108,7 +136,9 @@ if df_estudiantes is not None and df_notas is not None:
                                 self.set_font('Arial', 'I', 10)
                                 titulo_per = f"Período: {periodo_pdf}" if periodo_pdf != "Todos los Períodos" else "Informe Consolidado (Todos los Períodos)"
                                 self.cell(0, 5, titulo_per, 0, 1, 'C')
-                                self.ln(10)
+                                self.set_font('Arial', '', 9)
+                                self.cell(0, 5, f"Fecha de generación: {fecha_actual}", 0, 1, 'C')
+                                self.ln(5)
 
                             def footer(self):
                                 self.set_y(-15)
@@ -173,7 +203,7 @@ if df_estudiantes is not None and df_notas is not None:
         st.markdown("Área protegida para la administración del grupo seleccionado.")
 
         password_ingresada = st.text_input("Ingrese la Contraseña de Administración:", type="password", key="pwd_admin")
-        CLAVE_ADMIN = "Acad2019***" 
+        CLAVE_ADMIN = "Acad2019*" 
 
         if password_ingresada:
             if password_ingresada == CLAVE_ADMIN:
