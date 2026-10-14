@@ -12,14 +12,11 @@ st.markdown("Sistema oficial de consulta de calificaciones y generación de info
 # =========================================================================
 # CONFIGURACIÓN FIJA DE GOOGLE SHEETS (Conectado permanentemente a la nube)
 # =========================================================================
-# Pega tu enlace público de Google Sheets aquí para que cargue siempre solo:
 DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1TrMi2yLmjGnEayaKdGwDqGjLl3wLbuMb/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true"
 
-# Si quieres usar los secretos seguros de Streamlit Cloud, puedes configurarlo allá, 
-# pero aquí dejamos una opción fija para que funcione de inmediato:
 sheet_input_url = st.secrets.get("SHEET_URL", DEFAULT_SHEET_URL)
 
-@st.cache_data(ttl=30) # Se actualiza automáticamente cada 30 segundos si cambias algo en Google Drive
+@st.cache_data(ttl=30) 
 def cargar_datos_desde_drive(sheet_url):
     try:
         if "/d/" in sheet_url:
@@ -49,11 +46,9 @@ if df_estudiantes is not None and df_notas is not None:
         st.header("Consulta de Informe por Número de Documento")
         st.markdown("Digite el número de documento de identidad del estudiante para acceder a su expediente de notas.")
 
-        # Campo de seguridad por número de documento
         doc_ingresado = st.text_input("Número de Documento de Identidad:", type="default")
 
         if doc_ingresado:
-            # Limpiamos espacios y convertimos a texto para asegurar coincidencia exacta
             df_estudiantes['Documento_Identidad'] = df_estudiantes['Documento_Identidad'].astype(str).str.strip()
             doc_buscado = doc_ingresado.strip()
 
@@ -117,7 +112,6 @@ if df_estudiantes is not None and df_notas is not None:
                         pdf.cell(0, 7, f"Documento: {est_info.get('Documento_Identidad', 'N/A')}", 0, 1)
                         pdf.ln(3)
 
-                        # Tabla de calificaciones
                         pdf.set_fill_color(31, 78, 120)
                         pdf.set_text_color(255, 255, 255)
                         pdf.set_font("Arial", 'B', 9)
@@ -147,7 +141,6 @@ if df_estudiantes is not None and df_notas is not None:
                             pdf.cell(18, 7, str(row.get('Nota_4', '') if pd.notna(row.get('Nota_4')) else '-'), 1, 0, 'C')
                             pdf.cell(25, 7, str(row.get('Nota_Final', '') if pd.notna(row.get('Nota_Final')) else '-'), 1, 1, 'C')
 
-                        # Sección de Observaciones
                         pdf.ln(6)
                         pdf.set_font("Arial", 'B', 10)
                         pdf.cell(0, 6, "Observaciones Institucionales:", 0, 1)
@@ -166,11 +159,26 @@ if df_estudiantes is not None and df_notas is not None:
 
     with tab2:
         st.header("⚙️ Panel Administrativo (Secretaría)")
-        st.markdown("Vista general de control para la secretaría académica.")
-        st.subheader("Estudiantes Registrados")
-        st.dataframe(df_estudiantes, use_container_width=True)
-        st.subheader("Registro Completo de Calificaciones")
-        st.dataframe(df_notas, use_container_width=True)
+        st.markdown("Área restringida para la administración y control de la base de datos.")
+
+        # Campo de contraseña para ingresar a la administración
+        password_ingresada = st.text_input("Ingrese la Contraseña de Administración:", type="password")
+
+        # Define aquí la contraseña que prefieras para la secretaría
+        CLAVE_ADMIN = "Acad2026*" 
+
+        if password_ingresada:
+            if password_ingresada == CLAVE_ADMIN:
+                st.success("¡Acceso autorizado!")
+                st.subheader("Estudiantes Registrados")
+                st.dataframe(df_estudiantes, use_container_width=True)
+                
+                st.subheader("Registro Completo de Calificaciones")
+                st.dataframe(df_notas, use_container_width=True)
+            else:
+                st.error("❌ Contraseña incorrecta. Acceso denegado.")
+        else:
+            st.info("🔒 Por favor, ingrese la contraseña institucional para visualizar los registros completos.")
 
 else:
     st.error("⚠️ No se ha configurado correctamente el enlace de Google Sheets en el sistema. Por favor, asegúrese de colocar la URL en la variable `DEFAULT_SHEET_URL` del código.")
