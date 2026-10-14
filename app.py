@@ -165,7 +165,7 @@ if df_estudiantes is not None and df_notas is not None:
         password_ingresada = st.text_input("Ingrese la Contraseña de Administración:", type="password")
 
         # Define aquí la contraseña que prefieras para la secretaría
-        CLAVE_ADMIN = "Acad2026*" 
+        CLAVE_ADMIN = "Acad2019***" 
 
         if password_ingresada:
             if password_ingresada == CLAVE_ADMIN:
