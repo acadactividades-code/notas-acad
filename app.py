@@ -13,7 +13,7 @@ st.markdown("Sistema oficial de consulta de calificaciones y generación de info
 # CONFIGURACIÓN FIJA DE GOOGLE SHEETS (Conectado permanentemente a la nube)
 # =========================================================================
 # Pega tu enlace público de Google Sheets aquí para que cargue siempre solo:
-DEFAULT_SHEET_URL = "PEGA_AQUI_EL_ENLACE_DE_TU_GOOGLE_SHEET"
+DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1TrMi2yLmjGnEayaKdGwDqGjLl3wLbuMb/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true"
 
 # Si quieres usar los secretos seguros de Streamlit Cloud, puedes configurarlo allá, 
 # pero aquí dejamos una opción fija para que funcione de inmediato:
