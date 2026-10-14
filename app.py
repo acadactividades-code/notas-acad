@@ -10,11 +10,20 @@ st.title("🎓 Academia ACAD - Consulta de Informes Académicos")
 st.markdown("Sistema oficial de consulta de calificaciones y generación de informes institucionales.")
 
 # =========================================================================
-# CONFIGURACIÓN FIJA DE GOOGLE SHEETS (Conectado permanentemente a la nube)
+# CONFIGURACIÓN DE LOS GRUPOS (Múltiples Libros de Google Sheets)
 # =========================================================================
-DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1TrMi2yLmjGnEayaKdGwDqGjLl3wLbuMb/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true"
+# Reemplaza los enlaces de abajo con los de tus 3 o 4 libros de Google Sheets reales:
+GRUPOS_SHEETS = {
+    "Grupo 1 (Ej. Grupo 01)": "https://docs.google.com/spreadsheets/d/1xB6F4__Zxr9lSDJBtIY8QolzlwSfMsZF/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
+    "Grupo 2 (Ej. Grupo 02)": "https://docs.google.com/spreadsheets/d/1TrMi2yLmjGnEayaKdGwDqGjLl3wLbuMb/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
+    "Grupo 3 (Ej. Grupo 03)": "https://docs.google.com/spreadsheets/d/1uRZK8txP9TurJ3Z_0njPHdAYxtKqfcTm/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
+    "Grupo 4 (Ej. Grado 11D)": "PEGA_AQUI_EL_ENLACE_DEL_GRUPO_4"
+}
 
-sheet_input_url = st.secrets.get("SHEET_URL", DEFAULT_SHEET_URL)
+# Selector de grupo en la barra lateral
+st.sidebar.header("📚 Selección de Grupo / Curso")
+grupo_seleccionado = st.sidebar.selectbox("Seleccione el grupo a consultar:", list(GRUPOS_SHEETS.keys()))
+sheet_input_url = GRUPOS_SHEETS[grupo_seleccionado]
 
 @st.cache_data(ttl=30) 
 def cargar_datos_desde_drive(sheet_url):
@@ -30,7 +39,7 @@ def cargar_datos_desde_drive(sheet_url):
         else:
             return None, None
     except Exception as e:
-        st.error(f"Error al conectar con Google Sheets: {e}")
+        st.error(f"Error al conectar con Google Sheets de este grupo: {e}")
         return None, None
 
 if sheet_input_url and "PEGA_AQUI" not in sheet_input_url:
@@ -40,10 +49,12 @@ else:
 
 if df_estudiantes is not None and df_notas is not None:
 
+    st.sidebar.success(f"Conectado a: {grupo_seleccionado}")
+
     tab1, tab2 = st.tabs(["🔒 Portal de Consulta por Documento", "⚙️ Panel Administrativo (Secretaría)"])
 
     with tab1:
-        st.header("Consulta de Informe por Número de Documento")
+        st.header(f"Consulta de Informe - {grupo_seleccionado}")
         st.markdown("Digite el número de documento de identidad del estudiante para acceder a su expediente de notas.")
 
         doc_ingresado = st.text_input("Número de Documento de Identidad:", type="default")
@@ -65,7 +76,7 @@ if df_estudiantes is not None and df_notas is not None:
 
                 if not notas_est.empty:
                     st.subheader("Estado de Notas en Pantalla")
-                    periodo_sel = st.radio("Seleccione el Período a consultar en pantalla:", [1, 2, 3, 4, "Todos los Períodos"], horizontal=True)
+                    periodo_sel = st.radio("Seleccione el Período a consultar en pantalla:", [1, 2, 3, 4, "Todos los Períodos"], horizontal=True, key="p_pantalla")
 
                     if periodo_sel != "Todos los Períodos":
                         notas_mostrar = notas_est[notas_est['Periodo'] == periodo_sel]
@@ -77,7 +88,7 @@ if df_estudiantes is not None and df_notas is not None:
                     st.dataframe(notas_mostrar[cols_existentes], use_container_width=True)
 
                     st.subheader("📄 Generar Informe de Notas en PDF")
-                    periodo_pdf = st.selectbox("Seleccione el período para el Informe PDF:", [1, 2, 3, 4, "Todos los Períodos"])
+                    periodo_pdf = st.selectbox("Seleccione el período para el Informe PDF:", [1, 2, 3, 4, "Todos los Períodos"], key="p_pdf")
                     
                     observaciones_txt = st.text_area("Observaciones o Comportamiento del Estudiante:", 
                                                      value="El estudiante demuestra un buen desempeño académico y compromiso institucional durante este período.")
@@ -149,36 +160,33 @@ if df_estudiantes is not None and df_notas is not None:
 
                         pdf_output = pdf.output(dest='S').encode('latin-1')
                         b64 = base64.b64encode(pdf_output).decode()
-                        nombre_archivo = f"Informe_Notas_{estudiante_sel.replace(' ', '_')}_Periodo_{periodo_pdf}.pdf"
+                        nombre_archivo = f"Informe_{estudiante_sel.replace(' ', '_')}_Periodo_{periodo_pdf}.pdf"
                         href = f'<a href="data:file/pdf;base64,{b64}" download="{nombre_archivo}" style="background-color: #1F4E78; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">📥 Descargar Informe en PDF</a>'
                         st.markdown(href, unsafe_allow_html=True)
                 else:
-                    st.warning("No se encontraron registros de notas para este estudiante.")
+                    st.warning("No se encontraron registros de notas para este estudiante en este grupo.")
             else:
-                st.error("❌ El número de documento ingresado no se encuentra registrado en el sistema. Verifique e intente nuevamente.")
+                st.error("❌ El número de documento ingresado no se encuentra registrado en este grupo. Verifique e intente nuevamente.")
 
     with tab2:
-        st.header("⚙️ Panel Administrativo (Secretaría)")
-        st.markdown("Área restringida para la administración y control de la base de datos.")
+        st.header(f"⚙️ Panel Administrativo - {grupo_seleccionado}")
+        st.markdown("Área protegida para la administración del grupo seleccionado.")
 
-        # Campo de contraseña para ingresar a la administración
-        password_ingresada = st.text_input("Ingrese la Contraseña de Administración:", type="password")
-
-        # Define aquí la contraseña que prefieras para la secretaría
+        password_ingresada = st.text_input("Ingrese la Contraseña de Administración:", type="password", key="pwd_admin")
         CLAVE_ADMIN = "Acad2019***" 
 
         if password_ingresada:
             if password_ingresada == CLAVE_ADMIN:
                 st.success("¡Acceso autorizado!")
-                st.subheader("Estudiantes Registrados")
+                st.subheader("Estudiantes Registrados en este Grupo")
                 st.dataframe(df_estudiantes, use_container_width=True)
                 
-                st.subheader("Registro Completo de Calificaciones")
+                st.subheader("Calificaciones del Grupo")
                 st.dataframe(df_notas, use_container_width=True)
             else:
                 st.error("❌ Contraseña incorrecta. Acceso denegado.")
         else:
-            st.info("🔒 Por favor, ingrese la contraseña institucional para visualizar los registros completos.")
+            st.info("🔒 Por favor, ingrese la contraseña institucional para visualizar los registros de este grupo.")
 
 else:
-    st.error("⚠️ No se ha configurado correctamente el enlace de Google Sheets en el sistema. Por favor, asegúrese de colocar la URL en la variable `DEFAULT_SHEET_URL` del código.")
+    st.error("⚠️ Por favor, asegúrese de reemplazar los enlaces de prueba en el diccionario `GRUPOS_SHEETS` por los enlaces reales de sus Google Sheets.")
