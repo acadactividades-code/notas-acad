@@ -12,7 +12,6 @@ st.set_page_config(page_title="Sistema de Notas ACAD", page_icon="🎓", layout=
 # =========================================================================
 st.sidebar.header("🏫 Academia ACAD")
 
-# Mostrar el logo en la barra lateral de la app web
 logo_path = "logos-acad-5.png"
 try:
     st.sidebar.image(logo_path, width=120)
@@ -110,8 +109,8 @@ if df_estudiantes is not None and df_notas is not None:
                     st.subheader("📄 Generar Informe de Notas en PDF")
                     periodo_pdf = st.selectbox("Seleccione el período para el Informe PDF:", [1, 2, 3, 4, "Todos los Períodos"], key="p_pdf")
                     
-                    # Observaciones seguras (sin edición libre del usuario)
-                    observaciones_txt = "El estudiante demuestra un buen desempeño académico y compromiso institucional durante este período."
+                    # Observaciones limpias: Si existe en el Excel se muestra, de lo contrario se deja en blanco (o un espacio limpio)
+                    observaciones_txt = ""
                     if 'Observaciones' in est_info and pd.notna(est_info['Observaciones']):
                         observaciones_txt = str(est_info['Observaciones'])
                     elif not notas_est.empty and 'Observaciones' in notas_est.columns:
@@ -119,7 +118,10 @@ if df_estudiantes is not None and df_notas is not None:
                         if not obs_fila.empty and pd.notna(obs_fila.iloc[0].get('Observaciones')):
                             observaciones_txt = str(obs_fila.iloc[0]['Observaciones'])
 
-                    st.info(f"**Observaciones institucionales para el informe:**\n\n_{observaciones_txt}_")
+                    if observaciones_txt.strip():
+                        st.info(f"**Observaciones institucionales para el informe:**\n\n_{observaciones_txt}_")
+                    else:
+                        st.info("_No hay observaciones especiales registradas para este período (espacio en blanco)._")
 
                     if st.button("Crear Informe de Notas en PDF"):
                         fecha_actual = datetime.now().strftime("%d/%m/%Y")
@@ -182,11 +184,27 @@ if df_estudiantes is not None and df_notas is not None:
                             pdf.cell(18, 7, str(row.get('Nota_4', '') if pd.notna(row.get('Nota_4')) else '-'), 1, 0, 'C')
                             pdf.cell(25, 7, str(row.get('Nota_Final', '') if pd.notna(row.get('Nota_Final')) else '-'), 1, 1, 'C')
 
-                        pdf.ln(6)
+                        # Sección de Observaciones (si hay texto se imprime, si está en blanco se deja un espacio limpio)
+                        pdf.ln(5)
                         pdf.set_font("Arial", 'B', 10)
                         pdf.cell(0, 6, "Observaciones Institucionales:", 0, 1)
                         pdf.set_font("Arial", '', 9)
-                        pdf.multi_cell(0, 5, observaciones_txt)
+                        if observaciones_txt.strip():
+                            pdf.multi_cell(0, 5, observaciones_txt)
+                        else:
+                            # Espacio en blanco simulado o líneas si no hay observaciones
+                            pdf.cell(0, 6, "_________________________________________________________________________________", 0, 1)
+                            pdf.ln(2)
+
+                        # NOTA ACLARATORIA / AVISO INSTITUCIONAL AL PIE DEL INFORME
+                        pdf.ln(8)
+                        pdf.set_font("Arial", 'I', 8)
+                        nota_aclaratoria = (
+                            "Nota: Este es un informe parcial del período consultado. "
+                            "En caso de presentarse alguna inconsistencia, por favor comunicarse con el docente "
+                            "a través del canal oficial habilitado para el grupo correspondiente para solicitar la respectiva revisión o corrección."
+                        )
+                        pdf.multi_cell(0, 4, nota_aclaratoria)
 
                         pdf_output = pdf.output(dest='S').encode('latin-1')
                         b64 = base64.b64encode(pdf_output).decode()
@@ -203,7 +221,7 @@ if df_estudiantes is not None and df_notas is not None:
         st.markdown("Área protegida para la administración del grupo seleccionado.")
 
         password_ingresada = st.text_input("Ingrese la Contraseña de Administración:", type="password", key="pwd_admin")
-        CLAVE_ADMIN = "Acad2019*" 
+        CLAVE_ADMIN = "Acad2026*" 
 
         if password_ingresada:
             if password_ingresada == CLAVE_ADMIN:
