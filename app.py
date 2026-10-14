@@ -34,7 +34,7 @@ st.sidebar.markdown("---")
 GRUPOS_SHEETS = {
     "Grupo 1 (Ej. Grupo 01)": "Phttps://docs.google.com/spreadsheets/d/1xB6F4__Zxr9lSDJBtIY8QolzlwSfMsZF/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
     "Grupo 2 (Ej. Grupo 02)": "https://docs.google.com/spreadsheets/d/1TrMi2yLmjGnEayaKdGwDqGjLl3wLbuMb/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
-    "Grupo 3 (Ej. Grado 10C)": "https://docs.google.com/spreadsheets/d/1uRZK8txP9TurJ3Z_0njPHdAYxtKqfcTm/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
+    "Grupo 3 (Ej. Grupo 03)": "https://docs.google.com/spreadsheets/d/1uRZK8txP9TurJ3Z_0njPHdAYxtKqfcTm/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
     "Grupo 4 (Ej. Grado 11D)": "PEGA_AQUI_EL_ENLACE_DEL_GRUPO_4"
 }
 
