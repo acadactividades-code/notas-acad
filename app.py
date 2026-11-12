@@ -28,7 +28,7 @@ st.sidebar.markdown("[💬 Canal de WhatsApp](https://api.whatsapp.com/send/?pho
 st.sidebar.markdown("---")
 
 # =========================================================================
-# CONFIGURACIÓN DE LOS GRUPOS (Corregido el enlace del Grupo 1)
+# CONFIGURACIÓN DE LOS GRUPOS (Múltiples Libros de Google Sheets)
 # =========================================================================
 GRUPOS_SHEETS = {
     "Grupo 1 (Ej. Grupo 01)": "https://docs.google.com/spreadsheets/d/1xB6F4__Zxr9lSDJBtIY8QolzlwSfMsZF/edit?usp=sharing&ouid=116057535961518395264&rtpof=true&sd=true",
@@ -54,11 +54,22 @@ def cargar_datos_desde_drive(sheet_url):
             
             df_est = pd.read_csv(url_estudiantes)
             df_not = pd.read_csv(url_calificaciones)
+
+            # Limpiar espacios en blanco ocultos en columnas clave
+            if 'Documento_Identidad' in df_est.columns:
+                df_est['Documento_Identidad'] = df_est['Documento_Identidad'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+            if 'Nombres_y_Apellidos' in df_est.columns:
+                df_est['Nombres_y_Apellidos'] = df_est['Nombres_y_Apellidos'].astype(str).str.strip()
+            if 'Nombre_Estudiante' in df_not.columns:
+                df_not['Nombre_Estudiante'] = df_not['Nombre_Estudiante'].astype(str).str.strip()
+            if 'Periodo' in df_not.columns:
+                df_not['Periodo_Limpio'] = df_not['Periodo'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
+
             return df_est, df_not
         else:
             return None, None
     except Exception as e:
-        st.error(f"Error al conectar con Google Sheets de este grupo. Verifique que las pestañas 'Estudiantes' y 'Calificaciones' existan y el archivo sea público: {e}")
+        st.error(f"Error al conectar con Google Sheets de este grupo: {e}")
         return None, None
 
 def generar_pdf_boletin(estudiante_sel, est_info, notas_est, periodo_pdf, observaciones_txt):
@@ -109,12 +120,12 @@ def generar_pdf_boletin(estudiante_sel, est_info, notas_est, periodo_pdf, observ
     pdf.set_font("Arial", '', 9)
 
     if periodo_pdf != "Todos los Períodos":
-        notas_a_imprimir = notas_est[notas_est['Periodo'] == periodo_pdf]
+        notas_a_imprimir = notas_est[notas_est['Periodo_Limpio'] == str(periodo_pdf)]
     else:
         notas_a_imprimir = notas_est
 
     for _, row in notas_a_imprimir.iterrows():
-        pdf.cell(15, 7, str(row.get('Periodo', '')), 1, 0, 'C')
+        pdf.cell(15, 7, str(row.get('Periodo_Limpio', '')), 1, 0, 'C')
         pdf.cell(55, 7, str(row.get('Nombre_Asignatura', '')), 1, 0, 'L')
         pdf.cell(20, 7, str(row.get('Nota_1', '') if pd.notna(row.get('Nota_1')) else '-'), 1, 0, 'C')
         pdf.cell(20, 7, str(row.get('Nota_2', '') if pd.notna(row.get('Nota_2')) else '-'), 1, 0, 'C')
@@ -155,18 +166,24 @@ if df_estudiantes is not None and df_notas is not None:
     tab1, tab2 = st.tabs(["👨‍👩‍👧 Consulta Acudientes (Solo Visualización)", "🔒 Secretaría (Descarga PDF y Gestión)"])
 
     # =====================================================================
-    # PESTAÑA 1: SOLO VISUALIZACIÓN PARA ACUDIENTES (SIN OPCIÓN DE PDF)
+    # PESTAÑA 1: SOLO VISUALIZACIÓN PARA ACUDIENTES (CON SELECTOR DE PERÍODO)
     # =====================================================================
     with tab1:
         st.header(f"Consulta de Notas - {grupo_seleccionado}")
-        st.markdown("Digite el número de documento de identidad del estudiante para visualizar sus calificaciones en pantalla.")
+        st.markdown("Digite el número de documento de identidad del estudiante y seleccione el período académico.")
 
-        doc_ingresado = st.text_input("Número de Documento de Identidad:", key="doc_acudiente")
+        # Detecta automáticamente los períodos que existen en el Excel (ej. 1, 2, 3, 4)
+        periodos_disponibles = sorted(df_notas['Periodo_Limpio'].dropna().unique().tolist()) if 'Periodo_Limpio' in df_notas.columns else ["1", "2", "3", "4"]
+        opciones_periodo_acudiente = periodos_disponibles + ["Todos los Períodos"]
+
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            doc_ingresado = st.text_input("Número de Documento de Identidad:", key="doc_acudiente", placeholder="Ej: 1001234567")
+        with col2:
+            periodo_sel = st.selectbox("Seleccione el Período:", opciones_periodo_acudiente, key="p_acudiente")
 
         if doc_ingresado:
-            df_estudiantes['Documento_Identidad'] = df_estudiantes['Documento_Identidad'].astype(str).str.strip()
-            doc_buscado = doc_ingresado.strip()
-
+            doc_buscado = doc_ingresado.strip().replace(".0", "")
             estudiante_encontrado = df_estudiantes[df_estudiantes['Documento_Identidad'] == doc_buscado]
 
             if not estudiante_encontrado.empty:
@@ -176,26 +193,28 @@ if df_estudiantes is not None and df_notas is not None:
                 st.success(f"¡Estudiante encontrado: **{estudiante_sel}**!")
                 st.write(f"**Documento:** {est_info.get('Documento_Identidad', 'N/A')} | **Estado:** {est_info.get('Estado', 'Activo')}")
 
-                notas_est = df_notas[df_notas['Nombre_Estudiante'] == estudiante_sel]
+                # Búsqueda insensible a mayúsculas/minúsculas para evitar fallos por tildes o espacios
+                notas_est = df_notas[df_notas['Nombre_Estudiante'].str.lower() == estudiante_sel.lower()]
 
                 if not notas_est.empty:
-                    st.subheader("Calificaciones Registradas")
-                    periodo_sel = st.radio("Seleccione el Período a visualizar:", [1, 2, 3, 4, "Todos los Períodos"], horizontal=True, key="p_acudiente")
-
                     if periodo_sel != "Todos los Períodos":
-                        notas_mostrar = notas_est[notas_est['Periodo'] == periodo_sel]
+                        notas_mostrar = notas_est[notas_est['Periodo_Limpio'] == str(periodo_sel)]
                     else:
                         notas_mostrar = notas_est
 
-                    cols_ver = ['Periodo', 'Nombre_Asignatura', 'Nota_1', 'Nota_2', 'Nota_3', 'Nota_4', 'Nota_Periodo', 'Nota_Final']
-                    cols_existentes = [c for c in cols_ver if c in notas_mostrar.columns]
-                    st.dataframe(notas_mostrar[cols_existentes], use_container_width=True, hide_index=True)
+                    if not notas_mostrar.empty:
+                        st.subheader(f"Calificaciones - Período: {periodo_sel}")
+                        cols_ver = ['Periodo', 'Nombre_Asignatura', 'Nota_1', 'Nota_2', 'Nota_3', 'Nota_4', 'Nota_Periodo', 'Nota_Final']
+                        cols_existentes = [c for c in cols_ver if c in notas_mostrar.columns]
+                        st.dataframe(notas_mostrar[cols_existentes], use_container_width=True, hide_index=True)
 
-                    st.info("ℹ️ **Nota:** Esta vista es exclusivamente informativa para acudientes. Si requiere el boletín oficial en formato PDF, por favor solicítelo directamente en Secretaría.")
+                        st.info("ℹ️ **Nota:** Esta vista es exclusivamente informativa para acudientes. Si requiere el boletín oficial en formato PDF, por favor solicítelo directamente en Secretaría.")
+                    else:
+                        st.warning(f"El estudiante **{estudiante_sel}** aún no tiene notas cargadas para el período **{periodo_sel}**. Pruebe seleccionando otro período.")
                 else:
-                    st.warning("No se encontraron registros de notas para este estudiante en este grupo.")
+                    st.warning("No se encontraron registros de notas para este estudiante en la hoja de Calificaciones. Verifique que el nombre coincida exactamente entre las pestañas 'Estudiantes' y 'Calificaciones'.")
             else:
-                st.error("❌ El número de documento ingresado no se encuentra registrado en este grupo. Verifique e intente nuevamente.")
+                st.error("❌ El número de documento ingresado no se encuentra registrado en este grupo. Verifique el grupo en el menú lateral e intente nuevamente.")
 
     # =====================================================================
     # PESTAÑA 2: PANEL DE SECRETARÍA (PROTEGIDO CON CLAVE + DESCARGA PDF)
@@ -213,8 +232,6 @@ if df_estudiantes is not None and df_notas is not None:
 
                 st.subheader("📄 Emisión de Boletín Oficial en PDF")
                 
-                # Secretaría puede buscar por documento o elegir directamente de la lista del grupo
-                df_estudiantes['Documento_Identidad'] = df_estudiantes['Documento_Identidad'].astype(str).str.strip()
                 opciones_est = df_estudiantes.apply(lambda x: f"{x['Documento_Identidad']} - {x['Nombres_y_Apellidos']}", axis=1).tolist()
                 
                 seleccion_sec = st.selectbox("Seleccione o busque al estudiante:", opciones_est)
@@ -222,16 +239,17 @@ if df_estudiantes is not None and df_notas is not None:
                 
                 est_info_sec = df_estudiantes[df_estudiantes['Documento_Identidad'] == doc_sec].iloc[0]
                 nombre_sec = est_info_sec['Nombres_y_Apellidos']
-                notas_est_sec = df_notas[df_notas['Nombre_Estudiante'] == nombre_sec]
+                notas_est_sec = df_notas[df_notas['Nombre_Estudiante'].str.lower() == nombre_sec.lower()]
 
                 if not notas_est_sec.empty:
-                    periodo_pdf = st.selectbox("Seleccione el período para el Informe PDF:", [1, 2, 3, 4, "Todos los Períodos"], key="p_pdf_sec")
+                    periodos_sec = sorted(notas_est_sec['Periodo_Limpio'].dropna().unique().tolist())
+                    periodo_pdf = st.selectbox("Seleccione el período para el Informe PDF:", periodos_sec + ["Todos los Períodos"], key="p_pdf_sec")
 
                     observaciones_txt = ""
                     if 'Observaciones' in est_info_sec and pd.notna(est_info_sec['Observaciones']):
                         observaciones_txt = str(est_info_sec['Observaciones'])
                     elif 'Observaciones' in notas_est_sec.columns:
-                        obs_fila = notas_est_sec[notas_est_sec['Periodo'] == periodo_pdf]
+                        obs_fila = notas_est_sec[notas_est_sec['Periodo_Limpio'] == str(periodo_pdf)]
                         if not obs_fila.empty and pd.notna(obs_fila.iloc[0].get('Observaciones')):
                             observaciones_txt = str(obs_fila.iloc[0]['Observaciones'])
 
